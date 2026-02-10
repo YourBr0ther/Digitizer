@@ -3,7 +3,22 @@ FROM python:3.12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg lsdvd dvdbackup eject \
     libglib2.0-0 \
+    wget ca-certificates \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
+
+# Install libdvdcss2 from source
+RUN wget https://download.videolan.org/pub/libdvdcss/1.4.3/libdvdcss-1.4.3.tar.bz2 && \
+    tar xjf libdvdcss-1.4.3.tar.bz2 && \
+    cd libdvdcss-1.4.3 && \
+    ./configure --prefix=/usr && \
+    make && \
+    make install && \
+    cd .. && \
+    rm -rf libdvdcss-1.4.3 libdvdcss-1.4.3.tar.bz2 && \
+    apt-get purge -y build-essential && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY requirements.txt .
