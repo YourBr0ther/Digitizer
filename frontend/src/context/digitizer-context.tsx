@@ -64,6 +64,8 @@ export function DigitizerProvider({ children }: { children: ReactNode }) {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const reconnectDelayRef = useRef(1000);
 
+  const mountedRef = useRef(true);
+
   const connect = useCallback(() => {
     const baseUrl =
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -79,6 +81,7 @@ export function DigitizerProvider({ children }: { children: ReactNode }) {
 
     ws.onclose = () => {
       setState((prev) => ({ ...prev, connected: false }));
+      if (!mountedRef.current) return;
       reconnectTimeoutRef.current = setTimeout(() => {
         reconnectDelayRef.current = Math.min(
           reconnectDelayRef.current * 2,
@@ -167,6 +170,16 @@ export function DigitizerProvider({ children }: { children: ReactNode }) {
                 ...prev,
                 splitProgress: null,
               };
+            case "analysis_failed":
+              return {
+                ...prev,
+                analysisProgress: null,
+              };
+            case "split_failed":
+              return {
+                ...prev,
+                splitProgress: null,
+              };
             default:
               return prev;
           }
@@ -178,8 +191,10 @@ export function DigitizerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     connect();
     return () => {
+      mountedRef.current = false;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }

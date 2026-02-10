@@ -23,6 +23,29 @@ spec:
             - containerPort: 8000
           securityContext:
             privileged: true
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1000m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
           env:
             - name: DIGITIZER_DB_PATH
               value: /data/digitizer.db
@@ -45,6 +68,10 @@ spec:
               mountPath: /data
             - name: output
               mountPath: /output
+            - name: dvd-drive
+              mountPath: /dev/sr0
+            - name: capture-device
+              mountPath: /dev/video0
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -52,3 +79,9 @@ spec:
         - name: output
           persistentVolumeClaim:
             claimName: digitizer-output
+        - name: dvd-drive
+          hostPath:
+            path: /dev/sr0
+        - name: capture-device
+          hostPath:
+            path: /dev/video0

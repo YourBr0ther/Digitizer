@@ -188,8 +188,14 @@ def app_factory():
         yield
 
         # Shutdown
-        monitor_task.cancel()
-        await db.close()
+        try:
+            monitor_task.cancel()
+            try:
+                await monitor_task
+            except asyncio.CancelledError:
+                pass
+        finally:
+            await db.close()
 
     app = FastAPI(title="Digitizer", version="0.1.0", lifespan=lifespan)
     app.add_middleware(

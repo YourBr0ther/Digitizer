@@ -138,7 +138,7 @@ export default function JobsPage() {
                     <SourceBadge sourceType={job.source_type} />
                   </td>
                   <td className="px-4 py-3 text-[var(--muted)]">
-                    {formatDuration(job.disc_info.duration)}
+                    {formatDuration(job.disc_info?.duration ?? 0)}
                   </td>
                   <td className="px-4 py-3 text-[var(--muted)]">
                     {formatBytes(job.file_size)}

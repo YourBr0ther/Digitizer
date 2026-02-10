@@ -30,7 +30,7 @@ async def test_capture_status_idle(client):
 
 async def test_capture_stop_not_recording(client):
     resp = await client.post("/api/capture/stop")
-    assert resp.status_code == 404
+    assert resp.status_code == 409
 
 
 async def test_capture_start_creates_job(client, app):

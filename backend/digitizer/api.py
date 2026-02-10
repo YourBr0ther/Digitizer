@@ -50,11 +50,20 @@ async def get_settings(request: Request):
     return await db.get_settings()
 
 
+ALLOWED_SETTINGS = {
+    "output_path", "naming_pattern", "auto_eject",
+    "vhs_output_path", "encoding_preset", "crf_quality", "audio_bitrate",
+}
+
+
 @router.put("/settings")
 async def update_settings(request: Request):
     db = request.app.state.db
     body = await request.json()
-    await db.update_settings(**body)
+    filtered = {k: v for k, v in body.items() if k in ALLOWED_SETTINGS}
+    if not filtered:
+        raise HTTPException(status_code=400, detail="No valid settings provided")
+    await db.update_settings(**filtered)
     return await db.get_settings()
 
 
@@ -125,10 +134,10 @@ async def capture_start(request: Request):
 async def capture_stop(request: Request):
     vhs = request.app.state.vhs_capture
     if not vhs.is_recording:
-        raise HTTPException(status_code=404, detail="Not recording")
+        raise HTTPException(status_code=409, detail="Not recording")
 
+    job_id = request.app.state._capture_job_id  # Capture before stop clears it
     await vhs.stop()
-    job_id = request.app.state._capture_job_id
     if job_id:
         jm = request.app.state.job_manager
         job = await jm.get_job(job_id)
@@ -186,7 +195,7 @@ async def analyze_scenes(request: Request, job_id: str):
 
         except Exception as e:
             await db.update_job(job_id, analysis_status=None)
-            await ws.broadcast({"event": "job_failed", "data": {"job_id": job_id, "error": str(e)}})
+            await ws.broadcast({"event": "analysis_failed", "data": {"job_id": job_id, "error": str(e)}})
 
     asyncio.create_task(run_analysis())
     return {"status": "analyzing", "job_id": job_id}
@@ -277,7 +286,7 @@ async def split_scenes(request: Request, job_id: str):
 
         except Exception as e:
             await db.update_job(job_id, analysis_status="analyzed")
-            await ws.broadcast({"event": "job_failed", "data": {"job_id": job_id, "error": str(e)}})
+            await ws.broadcast({"event": "split_failed", "data": {"job_id": job_id, "error": str(e)}})
 
     asyncio.create_task(run_split())
     return {"status": "splitting", "job_id": job_id, "scene_count": len(scenes)}
@@ -290,7 +299,18 @@ async def get_thumbnail(job_id: str, filename: str, request: Request):
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    thumb_path = os.path.join(os.path.dirname(job.output_path), "thumbs", job_id, filename)
+    # Sanitize filename to prevent path traversal
+    safe_filename = os.path.basename(filename)
+    if safe_filename != filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    thumb_dir = os.path.join(os.path.dirname(job.output_path), "thumbs", job_id)
+    thumb_path = os.path.join(thumb_dir, safe_filename)
+
+    # Verify resolved path stays within expected directory
+    if not os.path.abspath(thumb_path).startswith(os.path.abspath(thumb_dir)):
+        raise HTTPException(status_code=400, detail="Invalid path")
+
     if not os.path.exists(thumb_path):
         raise HTTPException(status_code=404, detail="Thumbnail not found")
     return FileResponse(thumb_path, media_type="image/jpeg")

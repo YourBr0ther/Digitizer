@@ -24,6 +24,7 @@ class VHSCapture:
         self.audio_bitrate = audio_bitrate
         self._recording = False
         self._process: asyncio.subprocess.Process | None = None
+        self._lock = asyncio.Lock()
 
     @property
     def is_recording(self) -> bool:
@@ -60,8 +61,10 @@ class VHSCapture:
         output_path: str,
         on_progress: Callable[[float, int], Awaitable[None]] | None = None,
     ) -> bool:
-        if self._recording:
-            raise RuntimeError("Already recording")
+        async with self._lock:
+            if self._recording:
+                raise RuntimeError("Already recording")
+            self._recording = True
 
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         cmd = self.build_ffmpeg_command(output_path)
@@ -72,7 +75,6 @@ class VHSCapture:
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.PIPE,
         )
-        self._recording = True
 
         try:
             async for raw_line in self._process.stderr:
@@ -93,14 +95,21 @@ class VHSCapture:
             success = self._process.returncode == 0 or self._process.returncode == -2  # SIGINT
             return success
         finally:
-            self._recording = False
-            self._process = None
+            async with self._lock:
+                self._recording = False
+                self._process = None
 
     async def stop(self):
-        if not self._recording or self._process is None:
-            raise RuntimeError("Not recording")
+        async with self._lock:
+            if not self._recording or self._process is None:
+                raise RuntimeError("Not recording")
+            proc = self._process
 
-        logger.info("Stopping capture (SIGINT to pid %d)", self._process.pid)
-        self._process.send_signal(signal.SIGINT)
-        await self._process.wait()
-        self._recording = False
+        logger.info("Stopping capture (SIGINT to pid %d)", proc.pid)
+        proc.send_signal(signal.SIGINT)
+        await proc.wait()
+
+        # Idempotent cleanup (start()'s finally also does this under the lock)
+        async with self._lock:
+            self._recording = False
+            self._process = None
