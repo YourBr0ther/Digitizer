@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: digitizer-frontend:latest
-          imagePullPolicy: IfNotPresent
+          image: yourbr0ther/digitizer-frontend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           resources:

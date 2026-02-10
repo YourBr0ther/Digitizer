@@ -17,8 +17,8 @@ spec:
         digitizer/dvd-drive: "true"
       containers:
         - name: backend
-          image: digitizer-backend:latest
-          imagePullPolicy: IfNotPresent
+          image: yourbr0ther/digitizer-backend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           securityContext:
