@@ -106,10 +106,12 @@ class DVDRipper:
                 stderr=asyncio.subprocess.PIPE,
             )
 
+            stderr_lines = []
             async for raw_line in proc.stderr:
                 line = raw_line.decode("utf-8", errors="replace").strip()
                 if not line:
                     continue
+                stderr_lines.append(line)
                 seconds = self.parse_time_from_progress(line)
                 if seconds is not None and on_progress:
                     pct = self.calculate_progress(seconds, duration)
@@ -119,6 +121,11 @@ class DVDRipper:
             success = proc.returncode == 0
             if not success:
                 logger.error("FFmpeg exited with code %d", proc.returncode)
+                # Log last 20 lines of stderr for debugging
+                if stderr_lines:
+                    logger.error("FFmpeg stderr (last 20 lines):")
+                    for line in stderr_lines[-20:]:
+                        logger.error("  %s", line)
             return success
 
     async def eject(self) -> bool:
