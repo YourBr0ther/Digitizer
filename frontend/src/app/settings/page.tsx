@@ -54,6 +54,10 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-semibold text-white">Settings</h1>
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 space-y-6">
+        <h2 className="text-sm font-semibold text-white uppercase tracking-wider">
+          DVD Ripping
+        </h2>
+
         <div>
           <label className="block text-xs uppercase tracking-wider text-[var(--muted)] mb-2">
             Output Path
@@ -111,38 +115,98 @@ export default function SettingsPage() {
             />
           </button>
         </div>
+      </div>
+
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-6 space-y-6">
+        <h2 className="text-sm font-semibold text-white uppercase tracking-wider">
+          VHS Capture Settings
+        </h2>
 
         <div>
           <label className="block text-xs uppercase tracking-wider text-[var(--muted)] mb-2">
-            Source Type
+            VHS Output Path
+          </label>
+          <input
+            type="text"
+            value={settings.vhs_output_path ?? "/output/vhs"}
+            onChange={(e) =>
+              setSettings({ ...settings, vhs_output_path: e.target.value })
+            }
+            className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--background)] text-white text-sm focus:outline-none focus:border-[var(--accent)] transition-colors"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs uppercase tracking-wider text-[var(--muted)] mb-2">
+            Encoding Preset
           </label>
           <select
-            value="dvd"
-            disabled
-            className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--background)] text-white text-sm focus:outline-none focus:border-[var(--accent)] disabled:opacity-50 transition-colors"
+            value={settings.encoding_preset ?? "fast"}
+            onChange={(e) =>
+              setSettings({ ...settings, encoding_preset: e.target.value })
+            }
+            className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--background)] text-white text-sm focus:outline-none focus:border-[var(--accent)] transition-colors"
           >
-            <option value="dvd">DVD</option>
-            <option value="vhs">VHS (Phase 2)</option>
+            <option value="fast">Fast</option>
+            <option value="medium">Medium</option>
+            <option value="slow">Slow</option>
           </select>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            VHS capture support coming in Phase 2
+            Faster presets encode quicker but produce larger files
           </p>
         </div>
 
-        <div className="flex items-center gap-3 pt-2">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 text-sm rounded bg-[var(--accent)] text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
-          >
-            {saving ? "Saving..." : "Save Settings"}
-          </button>
-          {saved && (
-            <span className="text-sm text-[var(--success)]">
-              Settings saved
-            </span>
-          )}
+        <div>
+          <label className="block text-xs uppercase tracking-wider text-[var(--muted)] mb-2">
+            CRF Quality: {settings.crf_quality ?? 23}
+          </label>
+          <input
+            type="range"
+            min={18}
+            max={28}
+            value={settings.crf_quality ?? 23}
+            onChange={(e) =>
+              setSettings({ ...settings, crf_quality: Number(e.target.value) })
+            }
+            className="w-full accent-[var(--accent)]"
+          />
+          <div className="flex justify-between mt-1 text-xs text-[var(--muted)]">
+            <span>18 (highest quality / largest)</span>
+            <span>28 (lowest quality / smallest)</span>
+          </div>
         </div>
+
+        <div>
+          <label className="block text-xs uppercase tracking-wider text-[var(--muted)] mb-2">
+            Audio Bitrate
+          </label>
+          <select
+            value={settings.audio_bitrate ?? "192k"}
+            onChange={(e) =>
+              setSettings({ ...settings, audio_bitrate: e.target.value })
+            }
+            className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--background)] text-white text-sm focus:outline-none focus:border-[var(--accent)] transition-colors"
+          >
+            <option value="128k">128 kbps</option>
+            <option value="192k">192 kbps</option>
+            <option value="256k">256 kbps</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-4 py-2 text-sm rounded bg-[var(--accent)] text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
+        >
+          {saving ? "Saving..." : "Save Settings"}
+        </button>
+        {saved && (
+          <span className="text-sm text-[var(--success)]">
+            Settings saved
+          </span>
+        )}
       </div>
     </div>
   );
