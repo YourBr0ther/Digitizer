@@ -84,4 +84,6 @@ class JobManager:
             started_at=row.get("started_at"),
             completed_at=row.get("completed_at"),
             error=row.get("error"),
+            analysis_status=row.get("analysis_status"),
+            scene_count=row.get("scene_count"),
         )

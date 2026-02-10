@@ -36,8 +36,29 @@ class Database:
             INSERT OR IGNORE INTO settings (key, value) VALUES ('encoding_preset', 'fast');
             INSERT OR IGNORE INTO settings (key, value) VALUES ('crf_quality', '23');
             INSERT OR IGNORE INTO settings (key, value) VALUES ('audio_bitrate', '192k');
+
+            CREATE TABLE IF NOT EXISTS scenes (
+                id TEXT PRIMARY KEY,
+                job_id TEXT NOT NULL,
+                scene_index INTEGER NOT NULL,
+                start_time REAL NOT NULL,
+                end_time REAL NOT NULL,
+                duration REAL NOT NULL,
+                thumbnail_path TEXT,
+                split_path TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
             """
         )
+        # Add columns if they don't exist (safe for existing DBs)
+        try:
+            await self._conn.execute("ALTER TABLE jobs ADD COLUMN analysis_status TEXT")
+        except Exception:
+            pass  # Column already exists
+        try:
+            await self._conn.execute("ALTER TABLE jobs ADD COLUMN scene_count INTEGER")
+        except Exception:
+            pass  # Column already exists
         await self._conn.commit()
 
     async def close(self):
@@ -82,7 +103,7 @@ class Database:
         return jobs
 
     async def update_job(self, job_id: str, **kwargs):
-        allowed = {"status", "progress", "output_path", "file_size", "completed_at", "error"}
+        allowed = {"status", "progress", "output_path", "file_size", "completed_at", "error", "analysis_status", "scene_count"}
         fields = {k: v for k, v in kwargs.items() if k in allowed}
         if not fields:
             return
@@ -117,6 +138,39 @@ class Database:
                 "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
                 (key, str(value)),
             )
+        await self._conn.commit()
+
+    async def create_scene(
+        self, scene_id: str, job_id: str, scene_index: int,
+        start_time: float, end_time: float, duration: float,
+        thumbnail_path: str | None = None, split_path: str | None = None,
+    ):
+        await self._conn.execute(
+            """INSERT INTO scenes (id, job_id, scene_index, start_time, end_time, duration, thumbnail_path, split_path)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (scene_id, job_id, scene_index, start_time, end_time, duration, thumbnail_path, split_path),
+        )
+        await self._conn.commit()
+
+    async def list_scenes(self, job_id: str) -> list[dict]:
+        cursor = await self._conn.execute(
+            "SELECT * FROM scenes WHERE job_id = ? ORDER BY scene_index", (job_id,)
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    async def delete_scenes_for_job(self, job_id: str):
+        await self._conn.execute("DELETE FROM scenes WHERE job_id = ?", (job_id,))
+        await self._conn.commit()
+
+    async def update_scene(self, scene_id: str, **kwargs):
+        allowed = {"split_path", "thumbnail_path", "start_time", "end_time", "duration", "scene_index"}
+        fields = {k: v for k, v in kwargs.items() if k in allowed}
+        if not fields:
+            return
+        set_clause = ", ".join(f"{k} = ?" for k in fields)
+        values = list(fields.values()) + [scene_id]
+        await self._conn.execute(f"UPDATE scenes SET {set_clause} WHERE id = ?", values)
         await self._conn.commit()
 
     async def get_next_sequence(self, date_str: str) -> int:

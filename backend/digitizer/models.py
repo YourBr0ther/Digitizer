@@ -10,6 +10,25 @@ class JobStatus(str, Enum):
     FAILED = "failed"
 
 
+class AnalysisStatus(str, Enum):
+    ANALYZING = "analyzing"
+    ANALYZED = "analyzed"
+    SPLITTING = "splitting"
+    SPLIT_COMPLETE = "split_complete"
+
+
+class Scene(BaseModel):
+    id: str
+    job_id: str
+    scene_index: int
+    start_time: float
+    end_time: float
+    duration: float
+    thumbnail_path: str | None = None
+    split_path: str | None = None
+    created_at: str | None = None
+
+
 class DriveStatus(str, Enum):
     EMPTY = "empty"
     DISC_DETECTED = "disc_detected"
@@ -38,6 +57,8 @@ class Job(BaseModel):
     started_at: str | None = None
     completed_at: str | None = None
     error: str | None = None
+    analysis_status: str | None = None
+    scene_count: int | None = None
 
 
 class Settings(BaseModel):
