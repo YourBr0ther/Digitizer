@@ -1,6 +1,7 @@
 export type JobStatus = "detected" | "ripping" | "complete" | "failed";
 export type DriveStatusType = "empty" | "disc_detected" | "ripping";
 export type CaptureStatus = "idle" | "recording";
+export type AnalysisStatus = "analyzing" | "analyzed" | "splitting" | "split_complete";
 
 export interface DiscInfo {
   title_count: number;
@@ -19,6 +20,19 @@ export interface Job {
   started_at: string | null;
   completed_at: string | null;
   error: string | null;
+  analysis_status: AnalysisStatus | null;
+  scene_count: number | null;
+}
+
+export interface Scene {
+  id: string;
+  job_id: string;
+  scene_index: number;
+  start_time: number;
+  end_time: number;
+  duration: number;
+  thumbnail_path: string | null;
+  split_path: string | null;
 }
 
 export interface CaptureStatusResponse {

@@ -1,4 +1,4 @@
-import { Job, Settings, DriveState, CaptureStatusResponse, CaptureStartResponse } from "./types";
+import { Job, Scene, Settings, DriveState, CaptureStatusResponse, CaptureStartResponse } from "./types";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -65,4 +65,35 @@ export async function stopCapture(): Promise<Job> {
   return request<Job>("/api/capture/stop", {
     method: "POST",
   });
+}
+
+export async function analyzeScenes(jobId: string): Promise<{ status: string; job_id: string }> {
+  return request<{ status: string; job_id: string }>(`/api/jobs/${jobId}/analyze`, {
+    method: "POST",
+  });
+}
+
+export async function getScenes(jobId: string): Promise<Scene[]> {
+  return request<Scene[]>(`/api/jobs/${jobId}/scenes`);
+}
+
+export async function updateScenes(
+  jobId: string,
+  scenes: { scene_index: number; start_time: number; end_time: number }[]
+): Promise<Scene[]> {
+  return request<Scene[]>(`/api/jobs/${jobId}/scenes`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(scenes),
+  });
+}
+
+export async function splitScenes(jobId: string): Promise<{ status: string; job_id: string; scene_count: number }> {
+  return request<{ status: string; job_id: string; scene_count: number }>(`/api/jobs/${jobId}/split`, {
+    method: "POST",
+  });
+}
+
+export function getThumbnailUrl(jobId: string, filename: string): string {
+  return `${BASE_URL}/api/thumbs/${jobId}/${filename}`;
 }

@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Job } from "@/lib/types";
-import { getJob, deleteJob } from "@/lib/api";
+import { getJob, deleteJob, analyzeScenes } from "@/lib/api";
+import { useDigitizer } from "@/context/digitizer-context";
 import StatusBadge from "@/components/status-badge";
 import {
   formatBytes,
@@ -18,14 +20,37 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [analyzingLocal, setAnalyzingLocal] = useState(false);
+  const { analysisProgress } = useDigitizer();
 
-  useEffect(() => {
-    const id = params.id as string;
+  const fetchJob = (id: string) => {
     getJob(id)
       .then(setJob)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchJob(params.id as string);
   }, [params.id]);
+
+  // Refresh job when analysis completes
+  useEffect(() => {
+    if (analysisProgress === null && analyzingLocal && job) {
+      setAnalyzingLocal(false);
+      fetchJob(job.id);
+    }
+  }, [analysisProgress, analyzingLocal, job]);
+
+  const handleAnalyze = async () => {
+    if (!job) return;
+    setAnalyzingLocal(true);
+    try {
+      await analyzeScenes(job.id);
+    } catch {
+      setAnalyzingLocal(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!job) return;
@@ -124,6 +149,87 @@ export default function JobDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Scene Analysis Section - VHS jobs only */}
+      {job.source_type === "vhs" && job.status === "complete" && (
+        <div className="rounded-lg border border-purple-500/20 bg-[var(--surface)] p-6 space-y-4">
+          <div className="text-xs uppercase tracking-wider text-purple-400 mb-2">
+            Scene Detection
+          </div>
+
+          {/* No analysis yet */}
+          {!job.analysis_status && !analyzingLocal && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[var(--muted)]">
+                Analyze this capture to detect individual scenes
+              </span>
+              <button
+                onClick={handleAnalyze}
+                className="px-4 py-2 text-sm rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 transition-colors"
+              >
+                Analyze Scenes
+              </button>
+            </div>
+          )}
+
+          {/* Analyzing */}
+          {(job.analysis_status === "analyzing" || analyzingLocal) && (
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                <span className="text-sm text-purple-300">Detecting scenes...</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-[var(--background)] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-purple-500 animate-progress-stripe transition-all duration-500"
+                  style={{
+                    width: `${
+                      analysisProgress?.jobId === job.id
+                        ? analysisProgress.progress
+                        : 0
+                    }%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Analyzed */}
+          {(job.analysis_status === "analyzed" || job.analysis_status === "split_complete") &&
+            !analyzingLocal && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded border bg-purple-500/15 text-purple-400 border-purple-500/30">
+                    {job.scene_count ?? 0} scenes{" "}
+                    {job.analysis_status === "split_complete" ? "split" : "detected"}
+                  </span>
+                </div>
+                <Link
+                  href={`/jobs/${job.id}/scenes`}
+                  className="px-4 py-2 text-sm rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 transition-colors"
+                >
+                  Review Scenes
+                </Link>
+              </div>
+            )}
+
+          {/* Splitting */}
+          {job.analysis_status === "splitting" && !analyzingLocal && (
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                <span className="text-sm text-purple-300">Splitting scenes...</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-[var(--background)] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-purple-500 animate-progress-stripe transition-all duration-500"
+                  style={{ width: "50%" }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

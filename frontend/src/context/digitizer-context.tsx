@@ -11,6 +11,17 @@ import {
 } from "react";
 import { CaptureStatus, DriveStatusType, Job } from "@/lib/types";
 
+interface AnalysisProgress {
+  jobId: string;
+  progress: number;
+}
+
+interface SplitProgress {
+  jobId: string;
+  progress: number;
+  currentScene: number;
+}
+
 interface DigitizerState {
   driveStatus: DriveStatusType;
   activeJobId: string | null;
@@ -22,6 +33,8 @@ interface DigitizerState {
   captureJobId: string | null;
   captureElapsed: number;
   captureFileSize: number;
+  analysisProgress: AnalysisProgress | null;
+  splitProgress: SplitProgress | null;
 }
 
 const initialState: DigitizerState = {
@@ -35,6 +48,8 @@ const initialState: DigitizerState = {
   captureJobId: null,
   captureElapsed: 0,
   captureFileSize: 0,
+  analysisProgress: null,
+  splitProgress: null,
 };
 
 const DigitizerContext = createContext<DigitizerState>(initialState);
@@ -124,6 +139,33 @@ export function DigitizerProvider({ children }: { children: ReactNode }) {
                 activeJobId: null,
                 activeJobProgress: 0,
                 lastFailedJob: data as Job,
+              };
+            case "analysis_progress":
+              return {
+                ...prev,
+                analysisProgress: {
+                  jobId: data.job_id as string,
+                  progress: data.progress as number,
+                },
+              };
+            case "analysis_complete":
+              return {
+                ...prev,
+                analysisProgress: null,
+              };
+            case "split_progress":
+              return {
+                ...prev,
+                splitProgress: {
+                  jobId: data.job_id as string,
+                  progress: data.progress as number,
+                  currentScene: data.current_scene as number,
+                },
+              };
+            case "split_complete":
+              return {
+                ...prev,
+                splitProgress: null,
               };
             default:
               return prev;
