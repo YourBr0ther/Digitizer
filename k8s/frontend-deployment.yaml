@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: digitizer-frontend
+  namespace: digitizer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: digitizer-frontend
+  template:
+    metadata:
+      labels:
+        app: digitizer-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: digitizer-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: http://digitizer-backend:8000

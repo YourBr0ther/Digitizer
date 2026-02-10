@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: digitizer-backend
+  namespace: digitizer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: digitizer-backend
+  template:
+    metadata:
+      labels:
+        app: digitizer-backend
+    spec:
+      nodeSelector:
+        digitizer/dvd-drive: "true"
+      containers:
+        - name: backend
+          image: digitizer-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          securityContext:
+            privileged: true
+          env:
+            - name: DIGITIZER_DB_PATH
+              value: /data/digitizer.db
+            - name: DIGITIZER_OUTPUT_BASE_PATH
+              value: /output/dvd
+            - name: DIGITIZER_DRIVE_DEVICE
+              value: /dev/sr0
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: output
+              mountPath: /output
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: digitizer-db
+        - name: output
+          persistentVolumeClaim:
+            claimName: digitizer-output
