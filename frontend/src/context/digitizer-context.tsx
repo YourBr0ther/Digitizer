@@ -67,9 +67,10 @@ export function DigitizerProvider({ children }: { children: ReactNode }) {
   const mountedRef = useRef(true);
 
   const connect = useCallback(() => {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    const wsUrl = baseUrl.replace(/^http/, "ws") + "/api/ws";
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+    const wsUrl = baseUrl
+      ? baseUrl.replace(/^http/, "ws") + "/api/ws"
+      : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/ws`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
