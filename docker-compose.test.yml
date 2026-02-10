@@ -1,0 +1,34 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - digitizer-data:/data
+      - digitizer-output:/output
+    environment:
+      - DIGITIZER_DB_PATH=/data/digitizer.db
+      - DIGITIZER_OUTPUT_BASE_PATH=/output/dvd
+      - DIGITIZER_VHS_OUTPUT_PATH=/output/vhs
+      - DIGITIZER_DRIVE_DEVICE=/dev/sr0
+      - DIGITIZER_CAPTURE_DEVICE=/dev/video0
+      - DIGITIZER_POLL_INTERVAL=5.0
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  digitizer-data:
+  digitizer-output:
