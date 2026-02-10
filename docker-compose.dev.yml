@@ -1,0 +1,24 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+      - ./output:/output
+    devices:
+      - "/dev/sr0:/dev/sr0"
+    privileged: true
+    environment:
+      - DIGITIZER_DB_PATH=/data/digitizer.db
+      - DIGITIZER_OUTPUT_BASE_PATH=/output/dvd
+      - DIGITIZER_DRIVE_DEVICE=/dev/sr0
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      - backend
