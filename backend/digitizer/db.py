@@ -62,11 +62,17 @@ class Database:
         job["disc_info"] = json.loads(job["disc_info"])
         return job
 
-    async def list_jobs(self, limit: int = 10, offset: int = 0) -> list[dict]:
-        cursor = await self._conn.execute(
-            "SELECT * FROM jobs ORDER BY started_at DESC LIMIT ? OFFSET ?",
-            (limit, offset),
-        )
+    async def list_jobs(self, limit: int = 10, offset: int = 0, source_type: str | None = None) -> list[dict]:
+        if source_type:
+            cursor = await self._conn.execute(
+                "SELECT * FROM jobs WHERE source_type = ? ORDER BY started_at DESC LIMIT ? OFFSET ?",
+                (source_type, limit, offset),
+            )
+        else:
+            cursor = await self._conn.execute(
+                "SELECT * FROM jobs ORDER BY started_at DESC LIMIT ? OFFSET ?",
+                (limit, offset),
+            )
         rows = await cursor.fetchall()
         jobs = []
         for row in rows:

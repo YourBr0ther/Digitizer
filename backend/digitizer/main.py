@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from digitizer.api import router
+from digitizer.capture import VHSCapture
 from digitizer.db import Database
 from digitizer.drive_monitor import DriveMonitor
 from digitizer.jobs import JobManager
@@ -35,6 +36,8 @@ async def create_app(
     _db_path = db_path or os.environ.get("DIGITIZER_DB_PATH", "/data/digitizer.db")
     _output_base = output_base or os.environ.get("DIGITIZER_OUTPUT_BASE_PATH", "/output/dvd")
     _device = os.environ.get("DIGITIZER_DRIVE_DEVICE", "/dev/sr0")
+    _capture_device = os.environ.get("DIGITIZER_CAPTURE_DEVICE", "/dev/video0")
+    _vhs_output = os.environ.get("DIGITIZER_VHS_OUTPUT_PATH", "/output/vhs")
 
     db = Database(_db_path)
     await db.init()
@@ -42,13 +45,21 @@ async def create_app(
     ws_manager = ConnectionManager()
     drive_monitor = DriveMonitor(device=_device)
     ripper = DVDRipper(drive_device=_device)
-    job_manager = JobManager(db=db, output_base=_output_base)
+    job_manager = JobManager(db=db, output_base=_output_base, vhs_output_base=_vhs_output)
+    vhs_capture = VHSCapture(
+        capture_device=_capture_device,
+        encoding_preset=os.environ.get("DIGITIZER_ENCODING_PRESET", "fast"),
+        crf_quality=int(os.environ.get("DIGITIZER_CRF_QUALITY", "23")),
+        audio_bitrate=os.environ.get("DIGITIZER_AUDIO_BITRATE", "192k"),
+    )
 
     app.state.db = db
     app.state.ws_manager = ws_manager
     app.state.drive_monitor = drive_monitor
     app.state.ripper = ripper
     app.state.job_manager = job_manager
+    app.state.vhs_capture = vhs_capture
+    app.state._capture_job_id = None
 
     if start_monitor:
         app.state.monitor_task = asyncio.create_task(

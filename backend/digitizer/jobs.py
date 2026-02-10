@@ -6,19 +6,23 @@ from digitizer.models import Job, JobStatus, DiscInfo
 
 
 class JobManager:
-    def __init__(self, db: Database, output_base: str = "/output/dvd"):
+    def __init__(self, db: Database, output_base: str = "/output/dvd", vhs_output_base: str = "/output/vhs"):
         self.db = db
         self.output_base = output_base
+        self.vhs_output_base = vhs_output_base
 
-    async def create_job(self, disc_info: dict) -> Job:
+    async def create_job(self, disc_info: dict, source_type: str = "dvd") -> Job:
         job_id = str(uuid.uuid4())
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         seq = await self.db.get_next_sequence(today)
-        output_path = f"{self.output_base}/{today}_rip_{seq:03d}.mp4"
+        if source_type == "vhs":
+            output_path = f"{self.vhs_output_base}/{today}_capture_{seq:03d}.mp4"
+        else:
+            output_path = f"{self.output_base}/{today}_rip_{seq:03d}.mp4"
 
         await self.db.create_job(
             job_id=job_id,
-            source_type="dvd",
+            source_type=source_type,
             disc_info=disc_info,
             output_path=output_path,
         )
@@ -31,8 +35,8 @@ class JobManager:
             return None
         return self._row_to_job(row)
 
-    async def list_jobs(self, limit: int = 10, offset: int = 0) -> list[Job]:
-        rows = await self.db.list_jobs(limit=limit, offset=offset)
+    async def list_jobs(self, limit: int = 10, offset: int = 0, source_type: str | None = None) -> list[Job]:
+        rows = await self.db.list_jobs(limit=limit, offset=offset, source_type=source_type)
         return [self._row_to_job(r) for r in rows]
 
     async def mark_ripping(self, job_id: str) -> Job:
