@@ -24,7 +24,9 @@ class DVDRipper:
             "-y",
             "-hwaccel", "auto",
             "-i", vob_path,
-            "-c", "copy",
+            "-c:v", "copy",      # Copy video stream (fast)
+            "-c:a", "aac",       # Transcode audio to AAC (MP4-compatible)
+            "-b:a", "192k",      # Audio bitrate
             "-movflags", "+faststart",
             output_path,
         ]
