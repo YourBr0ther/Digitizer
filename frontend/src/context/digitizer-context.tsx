@@ -9,7 +9,7 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import { DriveStatusType, Job } from "@/lib/types";
+import { CaptureStatus, DriveStatusType, Job } from "@/lib/types";
 
 interface DigitizerState {
   driveStatus: DriveStatusType;
@@ -18,6 +18,10 @@ interface DigitizerState {
   lastCompletedJob: Job | null;
   lastFailedJob: Job | null;
   connected: boolean;
+  captureStatus: CaptureStatus;
+  captureJobId: string | null;
+  captureElapsed: number;
+  captureFileSize: number;
 }
 
 const initialState: DigitizerState = {
@@ -27,6 +31,10 @@ const initialState: DigitizerState = {
   lastCompletedJob: null,
   lastFailedJob: null,
   connected: false,
+  captureStatus: "idle",
+  captureJobId: null,
+  captureElapsed: 0,
+  captureFileSize: 0,
 };
 
 const DigitizerContext = createContext<DigitizerState>(initialState);
@@ -81,7 +89,23 @@ export function DigitizerProvider({ children }: { children: ReactNode }) {
                 ...prev,
                 driveStatus: data.status as DriveStatusType,
               };
+            case "capture_status":
+              return {
+                ...prev,
+                captureStatus: data.status as CaptureStatus,
+                ...(data.status === "idle"
+                  ? { captureJobId: null, captureElapsed: 0, captureFileSize: 0 }
+                  : {}),
+              };
             case "job_progress":
+              if (data.elapsed !== undefined) {
+                return {
+                  ...prev,
+                  captureJobId: data.job_id as string,
+                  captureElapsed: data.elapsed as number,
+                  captureFileSize: data.file_size as number,
+                };
+              }
               return {
                 ...prev,
                 activeJobId: data.job_id as string,

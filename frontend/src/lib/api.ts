@@ -1,4 +1,4 @@
-import { Job, Settings, DriveState } from "./types";
+import { Job, Settings, DriveState, CaptureStatusResponse, CaptureStartResponse } from "./types";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -17,9 +17,14 @@ export async function getDriveStatus(): Promise<DriveState> {
 
 export async function getJobs(
   limit = 10,
-  offset = 0
+  offset = 0,
+  sourceType?: string
 ): Promise<Job[]> {
-  return request<Job[]>(`/api/jobs?limit=${limit}&offset=${offset}`);
+  let url = `/api/jobs?limit=${limit}&offset=${offset}`;
+  if (sourceType) {
+    url += `&source_type=${sourceType}`;
+  }
+  return request<Job[]>(url);
 }
 
 export async function getJob(id: string): Promise<Job> {
@@ -43,5 +48,21 @@ export async function updateSettings(
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings),
+  });
+}
+
+export async function getCaptureStatus(): Promise<CaptureStatusResponse> {
+  return request<CaptureStatusResponse>("/api/capture/status");
+}
+
+export async function startCapture(): Promise<CaptureStartResponse> {
+  return request<CaptureStartResponse>("/api/capture/start", {
+    method: "POST",
+  });
+}
+
+export async function stopCapture(): Promise<Job> {
+  return request<Job>("/api/capture/stop", {
+    method: "POST",
   });
 }

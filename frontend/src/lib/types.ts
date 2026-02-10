@@ -1,5 +1,6 @@
 export type JobStatus = "detected" | "ripping" | "complete" | "failed";
 export type DriveStatusType = "empty" | "disc_detected" | "ripping";
+export type CaptureStatus = "idle" | "recording";
 
 export interface DiscInfo {
   title_count: number;
@@ -20,10 +21,26 @@ export interface Job {
   error: string | null;
 }
 
+export interface CaptureStatusResponse {
+  status: CaptureStatus;
+  job_id: string | null;
+}
+
+export interface CaptureStartResponse {
+  job_id: string;
+  source_type: string;
+  status: string;
+  output_path: string;
+}
+
 export interface Settings {
   output_path: string;
   naming_pattern: string;
   auto_eject: boolean;
+  vhs_output_path?: string;
+  encoding_preset?: string;
+  crf_quality?: number;
+  audio_bitrate?: string;
 }
 
 export interface DriveState {

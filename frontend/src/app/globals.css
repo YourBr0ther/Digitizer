@@ -49,3 +49,12 @@ body {
   background-size: 1rem 1rem;
   animation: progress-stripe 0.5s linear infinite;
 }
+
+@keyframes recording-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.animate-recording-pulse {
+  animation: recording-pulse 1s ease-in-out infinite;
+}
