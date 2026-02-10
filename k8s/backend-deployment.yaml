@@ -30,6 +30,16 @@ spec:
               value: /output/dvd
             - name: DIGITIZER_DRIVE_DEVICE
               value: /dev/sr0
+            - name: DIGITIZER_CAPTURE_DEVICE
+              value: /dev/video0
+            - name: DIGITIZER_VHS_OUTPUT_PATH
+              value: /output/vhs
+            - name: DIGITIZER_ENCODING_PRESET
+              value: fast
+            - name: DIGITIZER_CRF_QUALITY
+              value: "23"
+            - name: DIGITIZER_AUDIO_BITRATE
+              value: 192k
           volumeMounts:
             - name: data
               mountPath: /data

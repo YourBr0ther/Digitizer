@@ -8,11 +8,17 @@ services:
       - ./output:/output
     devices:
       - "/dev/sr0:/dev/sr0"
+      - "/dev/video0:/dev/video0"
     privileged: true
     environment:
       - DIGITIZER_DB_PATH=/data/digitizer.db
       - DIGITIZER_OUTPUT_BASE_PATH=/output/dvd
       - DIGITIZER_DRIVE_DEVICE=/dev/sr0
+      - DIGITIZER_CAPTURE_DEVICE=/dev/video0
+      - DIGITIZER_VHS_OUTPUT_PATH=/output/vhs
+      - DIGITIZER_ENCODING_PRESET=fast
+      - DIGITIZER_CRF_QUALITY=23
+      - DIGITIZER_AUDIO_BITRATE=192k
 
   frontend:
     build: ./frontend
