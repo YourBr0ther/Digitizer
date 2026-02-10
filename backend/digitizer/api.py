@@ -1,4 +1,9 @@
+import asyncio
+import os
+import uuid
+
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 
 router = APIRouter(prefix="/api")
 
@@ -130,6 +135,165 @@ async def capture_stop(request: Request):
         if job:
             return job.model_dump()
     return {"status": "stopped"}
+
+
+@router.post("/jobs/{job_id}/analyze", status_code=202)
+async def analyze_scenes(request: Request, job_id: str):
+    jm = request.app.state.job_manager
+    db = request.app.state.db
+    ws = request.app.state.ws_manager
+    detector = request.app.state.scene_detector
+
+    job = await jm.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.source_type != "vhs":
+        raise HTTPException(status_code=400, detail="Scene analysis only available for VHS captures")
+    if job.status.value != "complete":
+        raise HTTPException(status_code=400, detail="Job must be complete before analysis")
+
+    await db.update_job(job_id, analysis_status="analyzing")
+    await ws.broadcast({"event": "analysis_progress", "data": {"job_id": job_id, "progress": 0}})
+
+    async def run_analysis():
+        try:
+            thumb_dir = os.path.join(os.path.dirname(job.output_path), "thumbs", job_id)
+
+            async def on_progress(pct: int):
+                await ws.broadcast({"event": "analysis_progress", "data": {"job_id": job_id, "progress": pct}})
+
+            scenes = await detector.analyze(
+                video_path=job.output_path,
+                thumbnail_dir=thumb_dir,
+                on_progress=on_progress,
+            )
+
+            # Store scenes in DB
+            await db.delete_scenes_for_job(job_id)
+            for scene in scenes:
+                await db.create_scene(
+                    scene_id=scene.get("id", str(uuid.uuid4())),
+                    job_id=job_id,
+                    scene_index=scene["scene_index"],
+                    start_time=scene["start_time"],
+                    end_time=scene["end_time"],
+                    duration=scene["duration"],
+                    thumbnail_path=scene.get("thumbnail_path"),
+                )
+
+            await db.update_job(job_id, analysis_status="analyzed", scene_count=len(scenes))
+            await ws.broadcast({"event": "analysis_complete", "data": {"job_id": job_id, "scene_count": len(scenes)}})
+
+        except Exception as e:
+            await db.update_job(job_id, analysis_status=None)
+            await ws.broadcast({"event": "job_failed", "data": {"job_id": job_id, "error": str(e)}})
+
+    asyncio.create_task(run_analysis())
+    return {"status": "analyzing", "job_id": job_id}
+
+
+@router.get("/jobs/{job_id}/scenes")
+async def get_scenes(request: Request, job_id: str):
+    jm = request.app.state.job_manager
+    job = await jm.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    db = request.app.state.db
+    scenes = await db.list_scenes(job_id)
+    return scenes
+
+
+@router.put("/jobs/{job_id}/scenes")
+async def update_scenes(request: Request, job_id: str):
+    jm = request.app.state.job_manager
+    job = await jm.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    db = request.app.state.db
+    new_scenes = await request.json()
+
+    await db.delete_scenes_for_job(job_id)
+    for scene in new_scenes:
+        start = scene["start_time"]
+        end = scene["end_time"]
+        await db.create_scene(
+            scene_id=str(uuid.uuid4()),
+            job_id=job_id,
+            scene_index=scene["scene_index"],
+            start_time=start,
+            end_time=end,
+            duration=round(end - start, 3),
+        )
+
+    await db.update_job(job_id, scene_count=len(new_scenes))
+    return await db.list_scenes(job_id)
+
+
+@router.post("/jobs/{job_id}/split", status_code=202)
+async def split_scenes(request: Request, job_id: str):
+    jm = request.app.state.job_manager
+    db = request.app.state.db
+    ws = request.app.state.ws_manager
+    splitter = request.app.state.splitter
+
+    job = await jm.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    scenes = await db.list_scenes(job_id)
+    if not scenes:
+        raise HTTPException(status_code=400, detail="No scenes to split")
+
+    await db.update_job(job_id, analysis_status="splitting")
+
+    async def run_split():
+        try:
+            output_dir = os.path.join(os.path.dirname(job.output_path), "scenes", job_id)
+
+            async def on_progress(pct: int, current_scene: int):
+                await ws.broadcast({
+                    "event": "split_progress",
+                    "data": {"job_id": job_id, "progress": pct, "current_scene": current_scene},
+                })
+
+            paths = await splitter.split_all(
+                input_path=job.output_path,
+                scenes=scenes,
+                output_dir=output_dir,
+                on_progress=on_progress,
+            )
+
+            # Update scene records with split paths
+            for scene, path in zip(scenes, paths):
+                await db.update_scene(scene["id"], split_path=path)
+
+            await db.update_job(job_id, analysis_status="split_complete")
+            await ws.broadcast({
+                "event": "split_complete",
+                "data": {"job_id": job_id, "scene_count": len(paths)},
+            })
+
+        except Exception as e:
+            await db.update_job(job_id, analysis_status="analyzed")
+            await ws.broadcast({"event": "job_failed", "data": {"job_id": job_id, "error": str(e)}})
+
+    asyncio.create_task(run_split())
+    return {"status": "splitting", "job_id": job_id, "scene_count": len(scenes)}
+
+
+@router.get("/thumbs/{job_id}/{filename}")
+async def get_thumbnail(job_id: str, filename: str, request: Request):
+    jm = request.app.state.job_manager
+    job = await jm.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    thumb_path = os.path.join(os.path.dirname(job.output_path), "thumbs", job_id, filename)
+    if not os.path.exists(thumb_path):
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    return FileResponse(thumb_path, media_type="image/jpeg")
 
 
 @router.websocket("/ws")

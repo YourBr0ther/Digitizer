@@ -11,6 +11,8 @@ from digitizer.db import Database
 from digitizer.drive_monitor import DriveMonitor
 from digitizer.jobs import JobManager
 from digitizer.ripper import DVDRipper
+from digitizer.scene_detector import SceneDetector
+from digitizer.splitter import VideoSplitter
 from digitizer.ws import ConnectionManager
 
 logger = logging.getLogger(__name__)
@@ -53,12 +55,17 @@ async def create_app(
         audio_bitrate=os.environ.get("DIGITIZER_AUDIO_BITRATE", "192k"),
     )
 
+    scene_detector = SceneDetector()
+    splitter = VideoSplitter()
+
     app.state.db = db
     app.state.ws_manager = ws_manager
     app.state.drive_monitor = drive_monitor
     app.state.ripper = ripper
     app.state.job_manager = job_manager
     app.state.vhs_capture = vhs_capture
+    app.state.scene_detector = scene_detector
+    app.state.splitter = splitter
     app.state._capture_job_id = None
 
     if start_monitor:
