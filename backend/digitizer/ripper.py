@@ -2,7 +2,10 @@ import asyncio
 import logging
 import os
 import re
+import shutil
+import tempfile
 from collections.abc import Callable, Awaitable
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -14,14 +17,13 @@ class DVDRipper:
         self.drive_device = drive_device
 
     def build_ffmpeg_command(
-        self, title_number: int, output_path: str
+        self, vob_path: str, output_path: str
     ) -> list[str]:
-        input_path = f"dvd://{title_number}//{self.drive_device}"
         return [
             "ffmpeg",
             "-y",
             "-hwaccel", "auto",
-            "-i", input_path,
+            "-i", vob_path,
             "-c", "copy",
             "-movflags", "+faststart",
             output_path,
