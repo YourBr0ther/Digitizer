@@ -32,6 +32,10 @@ class Database:
             INSERT OR IGNORE INTO settings (key, value) VALUES ('output_path', '/output/dvd');
             INSERT OR IGNORE INTO settings (key, value) VALUES ('naming_pattern', 'YYYY-MM-DD_rip_NNN');
             INSERT OR IGNORE INTO settings (key, value) VALUES ('auto_eject', 'true');
+            INSERT OR IGNORE INTO settings (key, value) VALUES ('vhs_output_path', '/output/vhs');
+            INSERT OR IGNORE INTO settings (key, value) VALUES ('encoding_preset', 'fast');
+            INSERT OR IGNORE INTO settings (key, value) VALUES ('crf_quality', '23');
+            INSERT OR IGNORE INTO settings (key, value) VALUES ('audio_bitrate', '192k');
             """
         )
         await self._conn.commit()

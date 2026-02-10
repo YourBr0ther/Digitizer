@@ -16,6 +16,11 @@ class DriveStatus(str, Enum):
     RIPPING = "ripping"
 
 
+class CaptureStatus(str, Enum):
+    IDLE = "idle"
+    RECORDING = "recording"
+
+
 class DiscInfo(BaseModel):
     title_count: int = 0
     main_title: int = 1
