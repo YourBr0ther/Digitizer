@@ -29,6 +29,7 @@ nul
 .env
 .env.local
 .env.*
+!.env.example
 
 # Data
 *.db
